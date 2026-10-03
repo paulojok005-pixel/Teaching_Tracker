@@ -40,6 +40,8 @@
     .avatar{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0}
     .signature-preview{display:flex;align-items:center;gap:12px;padding:8px;border:1px solid var(--ln);border-radius:8px;background:rgba(255,255,255,0.25)}
     .signature-preview img{width:56px;height:56px;border-radius:10px;border:1px solid var(--ln);object-fit:cover;background:#fff}
+    .status{display:inline-block;padding:4px 8px;border-radius:999px;font-size:.75rem;font-weight:700}
+    .status.queued{background:#f8f0d7;color:#4d4118}.status.sent{background:#dff4e7;color:#1d4a30}.status.failed{background:#f7d9d5;color:#55231f}
   </style>
 </head>
 <body>
@@ -61,6 +63,7 @@
   const TEACHER_STATUS_KEY='teaching-tracker.teacher-status';
   const MESSAGE_KEY='teaching-tracker.message-history';
   const OTP_KEY='teaching-tracker.pending-otp';
+  const CONTACTS_KEY='teaching-tracker.parent-contacts';
   const SUPABASE_URL='https://jcyqjqilnlibsbgaflku.supabase.co';
   const SUPABASE_KEY='sb_publishable_4dXNQpQhyPtZDXoOmDThUg_AcfjlxaX';
   const TABS=['Lesson','Report','Progress','Schools','Messages'];
@@ -71,9 +74,7 @@
   const SIGNATURE_OPTIONS=['Teacher Signature','Bursar Signature','Headteacher Signature'];
   const EX=80,ME=50,DE=35;
   const COUNTRY_CODES=[
-    {name:'Afghanistan', code:'+93'},{name:'Albania', code:'+355'},{name:'Algeria', code:'+213'},{name:'Andorra', code:'+376'},{name:'Angola', code:'+244'},{name:'Antigua and Barbuda', code:'+1'},
-    {name:'Argentina', code:'+54'},{name:'Armenia', code:'+374'},{name:'Australia', code:'+61'},{name:'Austria', code:'+43'},{name:'Azerbaijan', code:'+994'},{name:'Bahamas', code:'+1'},
-    {name:'Bahrain', code:'+973'},{name:'Bangladesh', code:'+880'},{name:'Barbados', code:'+1'},{name:'Belarus', code:'+375'},{name:'Belgium', code:'+32'},{name:'Belize', code:'+501'},{name:'Benin', code:'+229'},{name:'Bhutan', code:'+975'},{name:'Bolivia', code:'+591'},{name:'Bosnia and Herzegovina', code:'+387'},{name:'Botswana', code:'+267'},{name:'Brazil', code:'+55'},{name:'Brunei', code:'+673'},{name:'Bulgaria', code:'+359'},{name:'Burkina Faso', code:'+226'},{name:'Burundi', code:'+257'},{name:'Cambodia', code:'+855'},{name:'Cameroon', code:'+237'},{name:'Canada', code:'+1'},{name:'Cape Verde', code:'+238'},{name:'Central African Republic', code:'+236'},{name:'Chad', code:'+235'},{name:'Chile', code:'+56'},{name:'China', code:'+86'},{name:'Colombia', code:'+57'},{name:'Comoros', code:'+269'},{name:'Congo (Brazzaville)', code:'+242'},{name:'Congo (Kinshasa)', code:'+243'},{name:'Costa Rica', code:'+506'},{name:'Croatia', code:'+385'},{name:'Cuba', code:'+53'},{name:'Cyprus', code:'+357'},{name:'Czech Republic', code:'+420'},{name:'Denmark', code:'+45'},{name:'Djibouti', code:'+253'},{name:'Dominica', code:'+1'},{name:'Dominican Republic', code:'+1'},{name:'Ecuador', code:'+593'},{name:'Egypt', code:'+20'},{name:'El Salvador', code:'+503'},{name:'Equatorial Guinea', code:'+240'},{name:'Eritrea', code:'+291'},{name:'Estonia', code:'+372'},{name:'Eswatini', code:'+268'},{name:'Ethiopia', code:'+251'},{name:'Fiji', code:'+679'},{name:'Finland', code:'+358'},{name:'France', code:'+33'},{name:'Gabon', code:'+241'},{name:'Gambia', code:'+220'},{name:'Georgia', code:'+995'},{name:'Germany', code:'+49'},{name:'Ghana', code:'+233'},{name:'Greece', code:'+30'},{name:'Grenada', code:'+1'},{name:'Guatemala', code:'+502'},{name:'Guinea', code:'+224'},{name:'Guinea-Bissau', code:'+245'},{name:'Guyana', code:'+592'},{name:'Haiti', code:'+509'},{name:'Honduras', code:'+504'},{name:'Hungary', code:'+36'},{name:'Iceland', code:'+354'},{name:'India', code:'+91'},{name:'Indonesia', code:'+62'},{name:'Iran', code:'+98'},{name:'Iraq', code:'+964'},{name:'Ireland', code:'+353'},{name:'Israel', code:'+972'},{name:'Italy', code:'+39'},{name:'Ivory Coast', code:'+225'},{name:'Jamaica', code:'+1'},{name:'Japan', code:'+81'},{name:'Jordan', code:'+962'},{name:'Kazakhstan', code:'+7'},{name:'Kenya', code:'+254'},{name:'Kiribati', code:'+686'},{name:'Kuwait', code:'+965'},{name:'Kyrgyzstan', code:'+996'},{name:'Laos', code:'+856'},{name:'Latvia', code:'+371'},{name:'Lebanon', code:'+961'},{name:'Lesotho', code:'+266'},{name:'Liberia', code:'+231'},{name:'Libya', code:'+218'},{name:'Liechtenstein', code:'+423'},{name:'Lithuania', code:'+370'},{name:'Luxembourg', code:'+352'},{name:'Madagascar', code:'+261'},{name:'Malawi', code:'+265'},{name:'Malaysia', code:'+60'},{name:'Maldives', code:'+960'},{name:'Mali', code:'+223'},{name:'Malta', code:'+356'},{name:'Marshall Islands', code:'+692'},{name:'Mauritania', code:'+222'},{name:'Mauritius', code:'+230'},{name:'Mexico', code:'+52'},{name:'Micronesia', code:'+691'},{name:'Moldova', code:'+373'},{name:'Monaco', code:'+377'},{name:'Mongolia', code:'+976'},{name:'Montenegro', code:'+382'},{name:'Morocco', code:'+212'},{name:'Mozambique', code:'+258'},{name:'Myanmar', code:'+95'},{name:'Namibia', code:'+264'},{name:'Nauru', code:'+674'},{name:'Nepal', code:'+977'},{name:'Netherlands', code:'+31'},{name:'New Zealand', code:'+64'},{name:'Nicaragua', code:'+505'},{name:'Niger', code:'+227'},{name:'Nigeria', code:'+234'},{name:'North Korea', code:'+850'},{name:'North Macedonia', code:'+389'},{name:'Norway', code:'+47'},{name:'Oman', code:'+968'},{name:'Pakistan', code:'+92'},{name:'Palau', code:'+680'},{name:'Palestine', code:'+970'},{name:'Panama', code:'+507'},{name:'Papua New Guinea', code:'+675'},{name:'Paraguay', code:'+595'},{name:'Peru', code:'+51'},{name:'Philippines', code:'+63'},{name:'Poland', code:'+48'},{name:'Portugal', code:'+351'},{name:'Qatar', code:'+974'},{name:'Romania', code:'+40'},{name:'Russia', code:'+7'},{name:'Rwanda', code:'+250'},{name:'Saint Kitts and Nevis', code:'+1'},{name:'Saint Lucia', code:'+1'},{name:'Saint Vincent and the Grenadines', code:'+1'},{name:'Samoa', code:'+685'},{name:'San Marino', code:'+378'},{name:'Sao Tome and Principe', code:'+239'},{name:'Saudi Arabia', code:'+966'},{name:'Senegal', code:'+221'},{name:'Serbia', code:'+381'},{name:'Seychelles', code:'+248'},{name:'Sierra Leone', code:'+232'},{name:'Singapore', code:'+65'},{name:'Slovakia', code:'+421'},{name:'Slovenia', code:'+386'},{name:'Solomon Islands', code:'+677'},{name:'Somalia', code:'+252'},{name:'South Africa', code:'+27'},{name:'South Korea', code:'+82'},{name:'South Sudan', code:'+211'},{name:'Spain', code:'+34'},{name:'Sri Lanka', code:'+94'},{name:'Sudan', code:'+249'},{name:'Suriname', code:'+597'},{name:'Sweden', code:'+46'},{name:'Switzerland', code:'+41'},{name:'Syria', code:'+963'},{name:'Taiwan', code:'+886'},{name:'Tajikistan', code:'+992'},{name:'Tanzania', code:'+255'},{name:'Thailand', code:'+66'},{name:'Timor-Leste', code:'+670'},{name:'Togo', code:'+228'},{name:'Tonga', code:'+676'},{name:'Trinidad and Tobago', code:'+1'},{name:'Tunisia', code:'+216'},{name:'Turkey', code:'+90'},{name:'Turkmenistan', code:'+993'},{name:'Tuvalu', code:'+688'},{name:'Uganda', code:'+256'},{name:'Ukraine', code:'+380'},{name:'United Arab Emirates', code:'+971'},{name:'United Kingdom', code:'+44'},{name:'United States', code:'+1'},{name:'Uruguay', code:'+598'},{name:'Uzbekistan', code:'+998'},{name:'Vanuatu', code:'+678'},{name:'Vatican City', code:'+39'},{name:'Venezuela', code:'+58'},{name:'Vietnam', code:'+84'},{name:'Yemen', code:'+967'},{name:'Zambia', code:'+260'},{name:'Zimbabwe', code:'+263'}
+    {name:'Afghanistan', code:'+93'},{name:'Albania', code:'+355'},{name:'Algeria', code:'+213'},{name:'Andorra', code:'+376'},{name:'Angola', code:'+244'},{name:'Antigua and Barbuda', code:'+1'},{name:'Argentina', code:'+54'},{name:'Armenia', code:'+374'},{name:'Australia', code:'+61'},{name:'Austria', code:'+43'},{name:'Azerbaijan', code:'+994'},{name:'Bahamas', code:'+1'},{name:'Bahrain', code:'+973'},{name:'Bangladesh', code:'+880'},{name:'Barbados', code:'+1'},{name:'Belarus', code:'+375'},{name:'Belgium', code:'+32'},{name:'Belize', code:'+501'},{name:'Benin', code:'+229'},{name:'Bhutan', code:'+975'},{name:'Bolivia', code:'+591'},{name:'Bosnia and Herzegovina', code:'+387'},{name:'Botswana', code:'+267'},{name:'Brazil', code:'+55'},{name:'Brunei', code:'+673'},{name:'Bulgaria', code:'+359'},{name:'Burkina Faso', code:'+226'},{name:'Burundi', code:'+257'},{name:'Cambodia', code:'+855'},{name:'Cameroon', code:'+237'},{name:'Canada', code:'+1'},{name:'Cape Verde', code:'+238'},{name:'Central African Republic', code:'+236'},{name:'Chad', code:'+235'},{name:'Chile', code:'+56'},{name:'China', code:'+86'},{name:'Colombia', code:'+57'},{name:'Comoros', code:'+269'},{name:'Congo (Brazzaville)', code:'+242'},{name:'Congo (Kinshasa)', code:'+243'},{name:'Costa Rica', code:'+506'},{name:'Croatia', code:'+385'},{name:'Cuba', code:'+53'},{name:'Cyprus', code:'+357'},{name:'Czech Republic', code:'+420'},{name:'Denmark', code:'+45'},{name:'Djibouti', code:'+253'},{name:'Dominica', code:'+1'},{name:'Dominican Republic', code:'+1'},{name:'Ecuador', code:'+593'},{name:'Egypt', code:'+20'},{name:'El Salvador', code:'+503'},{name:'Equatorial Guinea', code:'+240'},{name:'Eritrea', code:'+291'},{name:'Estonia', code:'+372'},{name:'Eswatini', code:'+268'},{name:'Ethiopia', code:'+251'},{name:'Fiji', code:'+679'},{name:'Finland', code:'+358'},{name:'France', code:'+33'},{name:'Gabon', code:'+241'},{name:'Gambia', code:'+220'},{name:'Georgia', code:'+995'},{name:'Germany', code:'+49'},{name:'Ghana', code:'+233'},{name:'Greece', code:'+30'},{name:'Grenada', code:'+1'},{name:'Guatemala', code:'+502'},{name:'Guinea', code:'+224'},{name:'Guinea-Bissau', code:'+245'},{name:'Guyana', code:'+592'},{name:'Haiti', code:'+509'},{name:'Honduras', code:'+504'},{name:'Hungary', code:'+36'},{name:'Iceland', code:'+354'},{name:'India', code:'+91'},{name:'Indonesia', code:'+62'},{name:'Iran', code:'+98'},{name:'Iraq', code:'+964'},{name:'Ireland', code:'+353'},{name:'Israel', code:'+972'},{name:'Italy', code:'+39'},{name:'Ivory Coast', code:'+225'},{name:'Jamaica', code:'+1'},{name:'Japan', code:'+81'},{name:'Jordan', code:'+962'},{name:'Kazakhstan', code:'+7'},{name:'Kenya', code:'+254'},{name:'Kiribati', code:'+686'},{name:'Kuwait', code:'+965'},{name:'Kyrgyzstan', code:'+996'},{name:'Laos', code:'+856'},{name:'Latvia', code:'+371'},{name:'Lebanon', code:'+961'},{name:'Lesotho', code:'+266'},{name:'Liberia', code:'+231'},{name:'Libya', code:'+218'},{name:'Liechtenstein', code:'+423'},{name:'Lithuania', code:'+370'},{name:'Luxembourg', code:'+352'},{name:'Madagascar', code:'+261'},{name:'Malawi', code:'+265'},{name:'Malaysia', code:'+60'},{name:'Maldives', code:'+960'},{name:'Mali', code:'+223'},{name:'Malta', code:'+356'},{name:'Marshall Islands', code:'+692'},{name:'Mauritania', code:'+222'},{name:'Mauritius', code:'+230'},{name:'Mexico', code:'+52'},{name:'Micronesia', code:'+691'},{name:'Moldova', code:'+373'},{name:'Monaco', code:'+377'},{name:'Mongolia', code:'+976'},{name:'Montenegro', code:'+382'},{name:'Morocco', code:'+212'},{name:'Mozambique', code:'+258'},{name:'Myanmar', code:'+95'},{name:'Namibia', code:'+264'},{name:'Nauru', code:'+674'},{name:'Nepal', code:'+977'},{name:'Netherlands', code:'+31'},{name:'New Zealand', code:'+64'},{name:'Nicaragua', code:'+505'},{name:'Niger', code:'+227'},{name:'Nigeria', code:'+234'},{name:'North Korea', code:'+850'},{name:'North Macedonia', code:'+389'},{name:'Norway', code:'+47'},{name:'Oman', code:'+968'},{name:'Pakistan', code:'+92'},{name:'Palau', code:'+680'},{name:'Palestine', code:'+970'},{name:'Panama', code:'+507'},{name:'Papua New Guinea', code:'+675'},{name:'Paraguay', code:'+595'},{name:'Peru', code:'+51'},{name:'Philippines', code:'+63'},{name:'Poland', code:'+48'},{name:'Portugal', code:'+351'},{name:'Qatar', code:'+974'},{name:'Romania', code:'+40'},{name:'Russia', code:'+7'},{name:'Rwanda', code:'+250'},{name:'Saint Kitts and Nevis', code:'+1'},{name:'Saint Lucia', code:'+1'},{name:'Saint Vincent and the Grenadines', code:'+1'},{name:'Samoa', code:'+685'},{name:'San Marino', code:'+378'},{name:'Sao Tome and Principe', code:'+239'},{name:'Saudi Arabia', code:'+966'},{name:'Senegal', code:'+221'},{name:'Serbia', code:'+381'},{name:'Seychelles', code:'+248'},{name:'Sierra Leone', code:'+232'},{name:'Singapore', code:'+65'},{name:'Slovakia', code:'+421'},{name:'Slovenia', code:'+386'},{name:'Solomon Islands', code:'+677'},{name:'Somalia', code:'+252'},{name:'South Africa', code:'+27'},{name:'South Korea', code:'+82'},{name:'South Sudan', code:'+211'},{name:'Spain', code:'+34'},{name:'Sri Lanka', code:'+94'},{name:'Sudan', code:'+249'},{name:'Suriname', code:'+597'},{name:'Sweden', code:'+46'},{name:'Switzerland', code:'+41'},{name:'Syria', code:'+963'},{name:'Taiwan', code:'+886'},{name:'Tajikistan', code:'+992'},{name:'Tanzania', code:'+255'},{name:'Thailand', code:'+66'},{name:'Timor-Leste', code:'+670'},{name:'Togo', code:'+228'},{name:'Tonga', code:'+676'},{name:'Trinidad and Tobago', code:'+1'},{name:'Tunisia', code:'+216'},{name:'Turkey', code:'+90'},{name:'Turkmenistan', code:'+993'},{name:'Tuvalu', code:'+688'},{name:'Uganda', code:'+256'},{name:'Ukraine', code:'+380'},{name:'United Arab Emirates', code:'+971'},{name:'United Kingdom', code:'+44'},{name:'United States', code:'+1'},{name:'Uruguay', code:'+598'},{name:'Uzbekistan', code:'+998'},{name:'Vanuatu', code:'+678'},{name:'Vatican City', code:'+39'},{name:'Venezuela', code:'+58'},{name:'Vietnam', code:'+84'},{name:'Yemen', code:'+967'},{name:'Zambia', code:'+260'},{name:'Zimbabwe', code:'+263'}
   ];
 
   let SB=null,uid=null,S=[],Ls=[],tab='Lesson',sel={s:'',c:0,w:1};
@@ -88,20 +89,50 @@
   const loadTeacherStatus=()=>{const status=localStorage.getItem(TEACHER_STATUS_KEY)||'Single';window.teacher_status=status;return status;};
   const getMessageHistory=()=>{try{return JSON.parse(localStorage.getItem(MESSAGE_KEY)||'[]');}catch{return [];}};
   const setMessageHistory=list=>localStorage.setItem(MESSAGE_KEY,JSON.stringify(list));
-  const svgDataUrl=(bg,fg,letter,shape)=>`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${bg}"/><stop offset="100%" stop-color="${fg}"/></linearGradient></defs><rect width="100" height="100" rx="18" fill="url(#g)"/><circle cx="50" cy="38" r="20" fill="rgba(255,255,255,0.25)"/><path d="M25 80c7-16 19-24 25-24s18 8 25 24" fill="rgba(255,255,255,0.2)"/><text x="50" y="55" text-anchor="middle" font-size="30" font-family="Arial,sans-serif" font-weight="700" fill="white">${letter}</text>${shape}</svg>`)}`;
-  const getRoleAvatar=(role)=>({Teacher:svgDataUrl('#0f6b7a','#4fb6c6','T',''),Bursar:svgDataUrl('#7a4a00','#d6a64c','B',''),Headteacher:svgDataUrl('#2c3e50','#7f8c8d','H','')})[role]||svgDataUrl('#0f6b7a','#4fb6c6','U','');
+  const getParentContacts=()=>{try{return JSON.parse(localStorage.getItem(CONTACTS_KEY)||'[]');}catch{return [];}};
+  const setParentContacts=list=>localStorage.setItem(CONTACTS_KEY,JSON.stringify(list));
+  const svgDataUrl=(bg,fg,letter)=>`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${bg}"/><stop offset="100%" stop-color="${fg}"/></linearGradient></defs><rect width="100" height="100" rx="18" fill="url(#g)"/><circle cx="50" cy="38" r="20" fill="rgba(255,255,255,0.25)"/><text x="50" y="55" text-anchor="middle" font-size="30" font-family="Arial,sans-serif" font-weight="700" fill="white">${letter}</text></svg>`)}`;
+  const getRoleAvatar=role=>({Teacher:svgDataUrl('#0f6b7a','#4fb6c6','T'),Bursar:svgDataUrl('#7a4a00','#d6a64c','B'),Headteacher:svgDataUrl('#2c3e50','#7f8c8d','H')})[role]||svgDataUrl('#0f6b7a','#4fb6c6','U');
   const generateOtp=()=>String(100000 + Math.floor(Math.random()*900000));
   const buildCountryOptions=()=>COUNTRY_CODES.map((c,i)=>`<option value="${c.code}" ${i===0?' selected':''}>${c.name} (${c.code})</option>`).join('');
   function toast(message,isError=false){const m=$('msg');if(!m)return;m.textContent=message;m.classList.toggle('error',isError);m.style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>{m.style.display='none';},2600)}
   function normalizePupilNames(value){const seen=new Set();return (value||'').split(/\n|,/) .map(name=>name.trim()).filter(Boolean).filter(name=>{const key=name.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;});}
 
   try{if(window.supabase&&/^https?:\/\//.test(SUPABASE_URL))SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY)}catch(x){console.error(x)}
-  const rowsOf=async table=>{if(!SB)throw new Error('Supabase was not initialized. Check your internet connection and reload.');let query=SB.from(table).select('id, user_id, data');if(uid)query=query.eq('user_id',uid);const{data,error}=await query;if(error)throw error;return(data||[]).map(r=>({id:r.id,...(r.data||{})}))};
+
+  const rowsOf=async(table)=>{if(!SB)throw new Error('Supabase was not initialized. Check your internet connection and reload.');let query=SB.from(table).select('id, user_id, data');if(uid)query=query.eq('user_id',uid);const{data,error}=await query;if(error)throw error;return(data||[]).map(r=>({id:r.id,...(r.data||{})}))};
   const ensureSignedIn=()=>{if(!uid)throw new Error('Please sign in first.');};
   const put=async(table,id,dataObj)=>{ensureSignedIn();const{error}=await SB.from(table).upsert({id,user_id:uid,data:dataObj});if(error){toast('Save failed: '+error.message,true);throw error;}await load();};
   const add=async(table,dataObj)=>{const id=crypto.randomUUID();await put(table,id,dataObj);return{id};};
   const del=async(table,id)=>{ensureSignedIn();const{error}=await SB.from(table).delete().eq('id',id).eq('user_id',uid);if(error){toast('Delete failed: '+error.message,true);throw error;}};
-  async function load(){try{if(!SB||!uid){S=[];Ls=[];return render();}S=await rowsOf('schools');Ls=await rowsOf('lessons');if(!sel.s&&S[0])sel.s=S[0].id;if(sel.s&&!S.some(s=>s.id===sel.s))sel.s=S[0]?S[0].id:'';if(S.length&&sel.c>=(cs()?.classes||[]).length-1)sel.c=0;}catch(x){toast('Load failed: '+(x.message||'Unknown error'),true);}render();}
+
+  function addParentContact(){
+    const contacts=getParentContacts();
+    const schoolId=sel.s || 'default';
+    const schoolName=cs()?cs().name:'School';
+    const grade=GRADES[sel.c] || 'Primary 1';
+    const item={id:crypto.randomUUID(),schoolId,schoolName,grade,parentName:'Parent',phone:'+000000000',createdAt:new Date().toISOString()};
+    contacts.push(item);setParentContacts(contacts);return item;
+  }
+
+  async function insertMessageRecord(msg){
+    const payload={id:crypto.randomUUID(),user_id:uid||'demo-user',data:msg};
+    try{
+      if(SB){const {error}=await SB.from('messages').upsert(payload);if(!error){return {status:'sent',recordId:payload.id};}}
+    }catch(_){ }
+    const history=getMessageHistory();history.push({...msg,id:payload.id,status:'queued',createdAt:new Date().toISOString()});setMessageHistory(history);return {status:'queued',recordId:payload.id};
+  }
+
+  async function load(){
+    try{
+      if(!SB||!uid){S=[];Ls=[];return render();}
+      S=await rowsOf('schools');
+      Ls=await rowsOf('lessons');
+      if(!sel.s&&S[0])sel.s=S[0].id;
+      if(sel.s&&!S.some(s=>s.id===sel.s))sel.s=S[0]?S[0].id:'';
+      if(S.length&&sel.c>=(cs()?.classes||[]).length-1)sel.c=0;
+    }catch(x){toast('Load failed: '+(x.message||'Unknown error'),true);}render();
+  }
 
   function loginHTML(){
     return `<div class="card"><h2>Sign in</h2>
@@ -124,7 +155,7 @@
           <label>Verification code</label>
           <input id="otpCode" type="text" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit code">
           <button class="b" id="verifyOtp">Verify code</button>
-          <p class="small" id="otpHint">Demo phone code is shown in a toast for testing.</p>
+          <p class="small" id="otpHint">Demo OTP is shown in a toast for testing.</p>
         </div>
       </div>
       <button class="b" id="in">Sign in</button>
@@ -144,55 +175,24 @@
     const phoneInput=$('phone');
     const otpInput=$('otpCode');
 
-    if(authMethod){authMethod.onchange=()=>{
-      const mode=authMethod.value;
-      emailPanel.style.display = mode==='email' ? 'block' : 'none';
-      phonePanel.style.display = mode==='phone' ? 'block' : 'none';
-    }}
+    if(authMethod){authMethod.onchange=()=>{const mode=authMethod.value;emailPanel.style.display=mode==='email'?'block':'none';phonePanel.style.display=mode==='phone'?'block':'none';}};
 
-    if($('sendOtp')){$('sendOtp').onclick=()=>{
-      const country=$('countryCode').value||'+1';
-      const phone=(phoneInput.value||'').replace(/\D/g,'');
-      if(!phone){return say('Enter a phone number.');}
-      const code=generateOtp();
-      localStorage.setItem(OTP_KEY, JSON.stringify({code,phone:country+phone,createdAt:Date.now()}));
-      otpBox.style.display='block';
-      say('');
-      toast(`Demo verification code: ${code}. Use it to verify your phone.`);
-    }}
+    if($('sendOtp')){$('sendOtp').onclick=()=>{const country=$('countryCode').value||'+1';const phone=(phoneInput.value||'').replace(/\D/g,'');if(!phone)return say('Enter a phone number.');const code=generateOtp();localStorage.setItem(OTP_KEY, JSON.stringify({code,phone:country+phone,createdAt:Date.now()}));otpBox.style.display='block';say('');toast(`Demo verification code: ${code}. Use it to verify your phone.`);}};
 
-    if($('verifyOtp')){$('verifyOtp').onclick=()=>{
-      const saved=JSON.parse(localStorage.getItem(OTP_KEY)||'null');
-      const entered=(otpInput.value||'').trim();
-      if(!saved||!entered){return say('Enter the verification code.');}
-      if(entered !== saved.code){return say('Incorrect verification code.');}
-      const finalPhone=saved.phone;
-      uid='demo-phone-'+finalPhone.replace(/\D/g,'');
-      window.phone_user = finalPhone;
-      localStorage.setItem('teaching-tracker.phone-user', finalPhone);
-      say('Phone verified.');
-      toast('Phone verified successfully.');
-      render();
-    }}
+    if($('verifyOtp')){$('verifyOtp').onclick=()=>{const saved=JSON.parse(localStorage.getItem(OTP_KEY)||'null');const entered=(otpInput.value||'').trim();if(!saved||!entered)return say('Enter the verification code.');if(entered!==saved.code)return say('Incorrect verification code.');const finalPhone=saved.phone;uid='demo-phone-'+finalPhone.replace(/\D/g,'');window.phone_user=finalPhone;localStorage.setItem('teaching-tracker.phone-user',finalPhone);say('Phone verified.');toast('Phone verified successfully.');render();}};
 
     const run=async(fn,ok,reset)=>{
       if(bad)return say(bad);
       if(authMethod.value==='phone'){
         const saved=JSON.parse(localStorage.getItem(OTP_KEY)||'null');
         if(!saved||!saved.phone){return say('Verify your phone number first.');}
-        if(!($('otpCode').value||'').trim() || ($('otpCode').value||'').trim() !== saved.code){return say('Enter the correct verification code before signing in.');}
+        if(!((otpInput.value||'').trim())||((otpInput.value||'').trim())!==saved.code){return say('Enter the correct verification code before signing in.');}
         uid='demo-phone-'+saved.phone.replace(/\D/g,'');
         window.phone_user=saved.phone;
         render();
         return;
       }
-      const em=$('em').value.trim();
-      const pw=$('pw').value;
-      if(!em||(!pw&&!reset))return say('Enter your email'+(reset?'.': ' and password.'));
-      say('Working…');
-      try{const{data,error}=await fn(em,pw);if(error)return say(error.message);say(ok(data));}
-      catch(x){say('Network error: '+(x.message||'Unable to complete request.'))}
-    };
+      const em=$('em').value.trim();const pw=$('pw').value;if(!em||(!pw&&!reset))return say('Enter your email'+(reset?'.':' and password.'));say('Working…');try{const{data,error}=await fn(em,pw);if(error)return say(error.message);say(ok(data));}catch(x){say('Network error: '+(x.message||'Unable to complete request.'));}}
 
     if($('in'))$('in').onclick=()=>run((e,p)=>SB.auth.signInWithPassword({email:e,password:p}),()=>'',false);
     if($('up'))$('up').onclick=()=>run((e,p)=>SB.auth.signUp({email:e,password:p}),d=>d&&d.session?'':'Account created. Check your email to confirm it, then sign in. (Or turn off "Confirm email" in Supabase.)');
@@ -213,10 +213,7 @@
     return `<div class="card"><h2>Add a school</h2><input id="sn" placeholder="School name"><button class="b" id="sa">Add school</button></div>` + S.map(s => `
       <div class="card">
         <h2>${e(s.name)}</h2>
-        ${GRADES.map((grade,idx)=>{
-          const cls=(s.classes||[])[idx];
-          return cls ? `<p><b>${grade}</b> <span class="mut">– ${(cls.pupils||[]).length} pupils: ${e((cls.pupils||[]).join(', '))}</span></p>` : '';
-        }).join('') || '<p class="mut">No classes yet.</p>'}
+        ${GRADES.map((grade,idx)=>{const cls=(s.classes||[])[idx];return cls?`<p><b>${grade}</b> <span class="mut">– ${(cls.pupils||[]).length} pupils: ${e((cls.pupils||[]).join(', '))}</span></p>`:'';}).join('') || '<p class="mut">No classes yet.</p>'}
         <div class="row"><div><label>Select class</label><select id="sc_${s.id}">${GRADES.map((grade,i)=>`<option value="${i}">Add/Edit ${grade}</option>`).join('')}</select></div></div>
         <label>Pupils, one name per line (adds to the class; new class if the name is new)</label>
         <textarea id="pn_${s.id}"></textarea>
@@ -228,7 +225,7 @@
 
   function bSchools(){
     const addSchoolBtn=$('sa');
-    if(addSchoolBtn){addSchoolBtn.onclick=async()=>{const name=($('sn').value||'').trim();if(!name)return toast('Enter a school name.',true);const classes=GRADES.map((g,i)=>({name:g,pupils:[]}));const r=await add('schools',{name,classes});sel.s=r.id;sel.c=0;toast('School added');};}
+    if(addSchoolBtn){addSchoolBtn.onclick=async()=>{const name=($('sn').value||'').trim();if(!name)return toast('Enter a school name.',true);const classes=GRADES.map(g=>({name:g,pupils:[]}));const r=await add('schools',{name,classes});sel.s=r.id;sel.c=0;toast('School added');};}
     document.querySelectorAll('[data-sid]').forEach(btn=>{btn.onclick=async()=>{const id=btn.dataset.sid;const school=S.find(x=>x.id===id);const classSelect=$('sc_'+id);const classIdx=classSelect?+classSelect.value:0;const pupils=normalizePupilNames($('pn_'+id).value);if(!school)return toast('School could not be found.',true);if(!pupils.length)return toast('Enter at least one pupil name.',true);const classes=JSON.parse(JSON.stringify(school.classes||[]));while(classes.length<GRADES.length)classes.push({name:GRADES[classes.length],pupils:[]});let currentClass=classes[classIdx];if(!currentClass)currentClass=classes[classIdx]={name:GRADES[classIdx],pupils:[]};currentClass.name=GRADES[classIdx];pupils.forEach(name=>{if(!currentClass.pupils.includes(name))currentClass.pupils.push(name);});await put('schools',id,{name:school.name,classes});toast('Saved');});});
     document.querySelectorAll('[data-del]').forEach(btn=>{btn.onclick=async()=>{if(!confirm('Delete this school and all its lessons?'))return;const id=btn.dataset.del;for(const lesson of Ls.filter(l=>l.sid===id))await del('lessons',lesson.id);await del('schools',id);sel.s='';sel.c=0;await load();};});
   }
@@ -246,16 +243,18 @@
 
   function vMessages(){
     const history=getMessageHistory();
-    const schoolName=cs()?cs().name:'School';
-    const selectedRole=(window.teacher_title||'Mr.')+' '+(window.teacher||'Teacher');
+    const contacts=getParentContacts();
+    const selectedSchool=cs()?cs().name:'School';
+    const defaultRole='Teacher';
     return `<div class="card"><h2>Send message to parents</h2>
-      <div class="row"><div><label>School</label><input value="${e(schoolName)}" readonly></div><div><label>To</label><select id="msgParentGroup"><option>All Parents</option><option>Class Parents</option><option>Selected Class</option></select></div></div>
-      <div class="row"><div><label>Message from</label><select id="msgFrom">${ROLE_OPTIONS.map(r=>`<option>${r}</option>`).join('')}</select></div><div><label>Signature</label><select id="msgSignature">${SIGNATURE_OPTIONS.map(r=>`<option>${r}</option>`).join('')}</select></div></div>
+      <div class="row"><div><label>School</label><input value="${e(selectedSchool)}" readonly></div><div><label>Send to</label><select id="msgParentGroup"><option>All Parents</option><option>Class Parents</option><option>Selected Class</option></select></div></div>
+      <div class="row"><div><label>Message from</label><select id="msgFrom">${ROLE_OPTIONS.map(r=>`<option${r===defaultRole?' selected':''}>${r}</option>`).join('')}</select></div><div><label>Signature</label><select id="msgSignature">${SIGNATURE_OPTIONS.map(r=>`<option${r===defaultRole+' Signature'?' selected':''}>${r}</option>`).join('')}</select></div></div>
       <label>Message</label>
       <textarea id="msgText" placeholder="Type your message here..."></textarea>
-      <div class="signature-preview"><img id="msgPreviewImg" src="${getRoleAvatar('Teacher')}" alt="signature preview"><div><b id="msgPreviewRole">Teacher</b><br><span class="small" id="msgPreviewSig">Teacher Signature</span></div></div>
+      <div class="signature-preview"><img id="msgPreviewImg" src="${getRoleAvatar(defaultRole)}" alt="signature preview"><div><b id="msgPreviewRole">Teacher</b><br><span class="small" id="msgPreviewSig">Teacher Signature</span></div></div>
       <button class="b" id="sendMessageBtn">Send message</button>
-      <div class="message-list">${history.length?history.slice().reverse().map(item=>`<div class="message-item"><div class="message-top"><span class="avatar" style="background:${(['#0f6b7a','#7a4a00','#2c3e50'])[ROLE_OPTIONS.indexOf(item.role)] || '#0f6b7a'}">${(item.role||'T').slice(0,1)}</span><div><b>${e(item.role)}</b><br><span class="small">${e(item.signature)} • ${new Date(item.createdAt).toLocaleString()}</span></div></div><p>${e(item.text)}</p><div class="small">${e(item.school)}</div></div>`).join(''):'<p class="mut">No messages sent yet.</p>'}</div>
+      <div class="mut small">Parent contacts: ${contacts.length} saved</div>
+      <div class="message-list">${history.length?history.slice().reverse().map(item=>`<div class="message-item"><div class="message-top"><span class="avatar" style="background:${(['#0f6b7a','#7a4a00','#2c3e50'])[ROLE_OPTIONS.indexOf(item.role)]||'#0f6b7a'}">${(item.role||'T').slice(0,1)}</span><div><b>${e(item.role)}</b><br><span class="small">${e(item.signature)} • ${new Date(item.createdAt).toLocaleString()}</span></div></div><p>${e(item.text)}</p><div class="small">${e(item.school)} • <span class="status ${item.status||'queued'}">${e(item.status||'queued')}</span></div></div>`).join(''):'<p class="mut">No messages sent yet.</p>'}</div>
     </div>`;
   }
 
@@ -265,26 +264,24 @@
     const previewImg=$('msgPreviewImg');
     const previewRole=$('msgPreviewRole');
     const previewSig=$('msgPreviewSig');
-    if(fromInput){fromInput.onchange=()=>{
-      const role=fromInput.value;
-      if(previewImg) previewImg.src=getRoleAvatar(role);
-      if(previewRole) previewRole.textContent=role;
-      if(signatureInput){
-        const roleSignature = role === 'Teacher' ? 'Teacher Signature' : role === 'Bursar' ? 'Bursar Signature' : 'Headteacher Signature';
-        signatureInput.value = roleSignature;
-        if(previewSig) previewSig.textContent = roleSignature;
-      }
-    }}
-    if(signatureInput){signatureInput.onchange=()=>{if(previewSig) previewSig.textContent=signatureInput.value;}} 
+    const msgText=$('msgText');
     const sendBtn=$('sendMessageBtn');
-    if(sendBtn){sendBtn.onclick=()=>{const text=($('msgText').value||'').trim();const role=fromInput?fromInput.value:'Teacher';const signature=signatureInput?signatureInput.value:'Teacher Signature';if(!text)return toast('Enter a message before sending.',true);const history=getMessageHistory();history.push({id:Date.now(),role,signature,text,school:cs()?cs().name:'School',createdAt:new Date().toISOString()});setMessageHistory(history);toast('Message sent');render();}};
-    if(previewImg && previewRole && previewSig){
-      const role = fromInput ? fromInput.value : 'Teacher';
-      previewImg.src=getRoleAvatar(role);
-      previewRole.textContent = role;
-      const sig = signatureInput ? signatureInput.value : 'Teacher Signature';
-      previewSig.textContent = sig;
-    }
+
+    const syncPreview=()=>{
+      const role=(fromInput?fromInput.value:'Teacher');
+      if(previewImg)previewImg.src=getRoleAvatar(role);
+      if(previewRole)previewRole.textContent=role;
+      if(signatureInput){
+        const candidate = role === 'Teacher' ? 'Teacher Signature' : role === 'Bursar' ? 'Bursar Signature' : 'Headteacher Signature';
+        signatureInput.value = candidate;
+      }
+      if(previewSig)previewSig.textContent = signatureInput ? signatureInput.value : 'Teacher Signature';
+    };
+
+    if(fromInput){fromInput.onchange=syncPreview;}
+    if(signatureInput){signatureInput.onchange=()=>{if(previewSig)previewSig.textContent=signatureInput.value;}};
+    syncPreview();
+    if(sendBtn){sendBtn.onclick=async()=>{const text=(msgText?msgText.value:'').trim();const role=fromInput?fromInput.value:'Teacher';const signature=signatureInput?signatureInput.value:'Teacher Signature';if(!text)return toast('Enter a message before sending.',true);const body={role,signature,text,school:cs()?cs().name:'School',target:'All Parents',status:'queued',createdAt:new Date().toISOString(),delivery:'pending'};const result=await insertMessageRecord(body);if(result && result.status==='queued'){toast('Message queued and saved in local storage.');}else{toast('Message sent and recorded.');}render();}};
   }
 
   function render(){
