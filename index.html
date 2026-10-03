@@ -51,25 +51,58 @@
   const e = s => String(s == null ? '' : s).replace(/[&<>\"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const $ = id => document.getElementById(id);
   const TEACHER_KEY = 'teaching-tracker.teacher-name';
+  const TEACHER_TITLE_KEY = 'teaching-tracker.teacher-title';
+  const TEACHER_STATUS_KEY = 'teaching-tracker.teacher-status';
   const SUPABASE_URL = 'https://jcyqjqilnlibsbgaflku.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_4dXNQpQhyPtZDXoOmDThUg_AcfjlxaX';
   const TABS = ['Lesson', 'Report', 'Progress', 'Schools'];
+  const GRADES = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6'];
+  const TITLES = ['Mr.', 'Ms.'];
+  const STATUSES = ['Single', 'Married', 'Unmarried', 'Divorced'];
   const EX = 80, ME = 50, DE = 35;
 
   let SB = null, uid = null, S = [], Ls = [], tab = 'Lesson', sel = { s: '', c: 0, w: 1 };
 
   const lv = p => p >= EX ? ['Exceeds', 1] : p >= ME ? ['Meets', 1] : p >= DE ? ['Developing', 2] : ['Not yet', 3];
   const pct = v => v == null ? '–' : Math.round(v) + '%';
+  
   const saveTeacherName = value => {
     const name = (value || '').trim();
     window.teacher = name;
     if (name) localStorage.setItem(TEACHER_KEY, name);
     else localStorage.removeItem(TEACHER_KEY);
   };
+  
   const loadTeacherName = () => {
     const name = localStorage.getItem(TEACHER_KEY) || '';
     window.teacher = name;
     return name;
+  };
+
+  const saveTeacherTitle = value => {
+    const title = (value || '').trim();
+    window.teacher_title = title;
+    if (title) localStorage.setItem(TEACHER_TITLE_KEY, title);
+    else localStorage.removeItem(TEACHER_TITLE_KEY);
+  };
+  
+  const loadTeacherTitle = () => {
+    const title = localStorage.getItem(TEACHER_TITLE_KEY) || 'Mr.';
+    window.teacher_title = title;
+    return title;
+  };
+
+  const saveTeacherStatus = value => {
+    const status = (value || '').trim();
+    window.teacher_status = status;
+    if (status) localStorage.setItem(TEACHER_STATUS_KEY, status);
+    else localStorage.removeItem(TEACHER_STATUS_KEY);
+  };
+  
+  const loadTeacherStatus = () => {
+    const status = localStorage.getItem(TEACHER_STATUS_KEY) || 'Single';
+    window.teacher_status = status;
+    return status;
   };
 
   function toast(message, isError = false) {
@@ -187,7 +220,7 @@
     };
 
     $('in').onclick = () => run((email, password) => SB.auth.signInWithPassword({ email, password }), () => '');
-    $('up').onclick = () => run((email, password) => SB.auth.signUp({ email, password }), data => data && data.session ? '' : 'Account created. Check your email to confirm it, then sign in. (Or turn off “Confirm email” in Supabase.)');
+    $('up').onclick = () => run((email, password) => SB.auth.signUp({ email, password }), data => data && data.session ? '' : 'Account created. Check your email to confirm it, then sign in. (Or turn off "Confirm email" in Supabase.)');
     $('rs').onclick = () => run(email => SB.auth.resetPasswordForEmail(email, { redirectTo: location.href }), () => 'Reset link sent. Check your email.', true);
   }
 
@@ -221,7 +254,7 @@
     if (!S.length) return '';
     const s = cs();
     return `<div class="card"><div class="row"><div><label>School</label><select id="ps">${S.map(x => `<option value="${x.id}"${x.id===s.id?' selected':''}>${e(x.name)}</option>`).join('')}</select></div>
-    <div><label>Class</label><select id="pc">${(s.classes || []).map((c, i) => `<option value="${i}"${i==sel.c?' selected':''}>${e(c.name)}</option>`).join('')}</select></div>
+    <div><label>Class</label><select id="pc">${GRADES.map((grade, i) => `<option value="${i}"${i==sel.c?' selected':''}>${grade}</option>`).join('')}</select></div>
     ${(tab === 'Lesson' || tab === 'Report') ? `<div><label>Term week</label><select id="pw">${[...Array(14)].map((_, i) => `<option${i + 1 == sel.w ? ' selected' : ''}>${i + 1}</option>`).join('')}</select></div>` : ''}</div></div>`;
   }
 
@@ -241,8 +274,11 @@
     return `<div class="card"><h2>Add a school</h2><input id="sn" placeholder="School name"><button class="b" id="sa">Add school</button></div>` + S.map(s => `
       <div class="card">
         <h2>${e(s.name)}</h2>
-        ${(s.classes || []).map(c => `<p><b>${e(c.name)}</b> <span class="mut">– ${(c.pupils || []).length} pupils: ${e((c.pupils || []).join(', '))}</span></p>`).join('') || '<p class="mut">No classes yet.</p>'}
-        <div class="row"><div><label>Class name (e.g. Primary 4)</label><input id="cn_${s.id}"></div></div>
+        ${GRADES.map((grade, gradeIdx) => {
+          const cls = (s.classes || [])[gradeIdx];
+          return cls ? `<p><b>${grade}</b> <span class="mut">– ${(cls.pupils || []).length} pupils: ${e((cls.pupils || []).join(', '))}</span></p>` : '';
+        }).join('') || '<p class="mut">No classes yet.</p>'}
+        <div class="row"><div><label>Select class</label><select id="sc_${s.id}">${GRADES.map((grade, i) => `<option value="${i}">Add/Edit ${grade}</option>`).join('')}</select></div></div>
         <label>Pupils, one name per line (adds to the class; new class if the name is new)</label>
         <textarea id="pn_${s.id}"></textarea>
         <button class="b" data-sid="${s.id}">Save class / pupils</button>
@@ -257,7 +293,8 @@
       addSchoolBtn.onclick = async () => {
         const name = ($('sn').value || '').trim();
         if (!name) return toast('Enter a school name.', true);
-        const r = await add('schools', { name, classes: [] });
+        const classes = GRADES.map(() => ({ name: '', pupils: [] }));
+        const r = await add('schools', { name, classes });
         sel.s = r.id; sel.c = 0;
         toast('School added');
       };
@@ -267,17 +304,19 @@
       btn.onclick = async () => {
         const id = btn.dataset.sid;
         const school = S.find(x => x.id === id);
-        const className = ($('cn_' + id).value || '').trim();
+        const classSelect = $('sc_' + id);
+        const classIdx = classSelect ? +classSelect.value : 0;
         const pupils = normalizePupilNames($('pn_' + id).value);
-        if (!className) return toast('Enter a class name', true);
         if (!school) return toast('School could not be found.', true);
+        if (!pupils.length) return toast('Enter at least one pupil name.', true);
 
         const classes = JSON.parse(JSON.stringify(school.classes || []));
-        let currentClass = classes.find(x => x.name.toLowerCase() === className.toLowerCase());
-        if (!currentClass) {
-          currentClass = { name: className, pupils: [] };
-          classes.push(currentClass);
-        }
+        while (classes.length < GRADES.length) classes.push({ name: GRADES[classes.length], pupils: [] });
+        
+        let currentClass = classes[classIdx];
+        if (!currentClass) currentClass = classes[classIdx] = { name: GRADES[classIdx], pupils: [] };
+        currentClass.name = GRADES[classIdx];
+        
         pupils.forEach(name => {
           if (!currentClass.pupils.includes(name)) currentClass.pupils.push(name);
         });
@@ -320,7 +359,7 @@
     const mk = l.marks || {};
     const sel2 = (id, opts, value) => `<select id="${id}">${opts.map(o => `<option${o == value ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
 
-    return pickers() + `<div class="card"><h2>${l.topic ? 'Edit' : 'New'} lesson – week ${sel.w}</h2>
+    return pickers() + `<div class="card"><h2>${l.topic ? 'Edit' : 'New'} lesson – ${GRADES[sel.c]} – week ${sel.w}</h2>
       ${prev && prev.next ? `<p class="mut">Planned last week: ${e(prev.next)}</p>` : ''}
       <div class="row"><div><label>Date</label><input type="date" id="f_date" value="${e(l.date)}"></div>
       <div><label>Content completed?</label>${sel2('f_done', ['Yes', 'Partly', 'No'], l.done || 'Yes')}</div>
@@ -347,7 +386,7 @@
       const cls = cc();
       if (!school || !cls) return toast('Select a valid school and class first.', true);
 
-      const data = { sid: school.id, ci: sel.c, cls: cls.name, w: sel.w, marks: {} };
+      const data = { sid: school.id, ci: sel.c, cls: GRADES[sel.c], w: sel.w, marks: {} };
       data.date = $('f_date').value;
       data.done = $('f_done').value;
       data.conf = +$('f_conf').value;
@@ -376,7 +415,7 @@
     const s = cs();
     const cls = cc();
     const l = lessonAt(sel.w);
-    const H = `<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:6px"><h2 style="margin:0">Weekly Teaching Report – Computer Basics</h2><p style="margin:4px 0 10px">${e(s.name)} · ${e(cls.name)} · Week ${sel.w}${l && l.date ? ' · ' + e(l.date) : ''}</p>`;
+    const H = `<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:6px"><h2 style="margin:0">Weekly Teaching Report – Computer Basics</h2><p style="margin:4px 0 10px">${e(s.name)} · ${e(GRADES[sel.c])} · Week ${sel.w}${l && l.date ? ' · ' + e(l.date) : ''}</p>`;
     if (!l) return H + '<p>No lesson logged for this week yet (use the Lesson tab).</p></div>';
 
     const st = stats(l, cls);
@@ -396,25 +435,56 @@
       T('3. Self-evaluation') + R('Challenges', e(l.challenges)) + R('Content completed', e(l.done)) + R('Confidence (1-5)', l.conf) + R('What worked / change', e(l.worked)) + '</table>' +
       T('4. Next week') + R('Next topic', e(l.next)) + R('Prep & requests', e(l.prep)) + '</table>' +
       T('Term to date') + R('Lessons taught', all.length) + R('Average attendance', pct(av(all.map(x => x.att)))) + R('Average score', pct(av(all.map(x => x.avg)))) + '</table>' +
-      `<p style="font-size:11px;margin-top:14px">Prepared by: ${e(window.teacher || '')}</p></div>`;
+      `<p style="font-size:11px;margin-top:14px">Prepared by: ${e((window.teacher_title || 'Mr.') + ' ' + (window.teacher || ''))} | Status: ${e(window.teacher_status || 'Single')}</p></div>`;
   }
 
   function vReport() {
     const n = need();
     if (n) return pickers() + n;
-    return pickers() + `<div class="card"><label>Teacher name (printed on report)</label><input id="tn" value="${e(window.teacher || loadTeacherName())}"><button class="b" id="pdf">Download PDF</button><button class="b alt" id="doc">Download Word</button></div><div class="card" id="rep">${repHTML()}</div>`;
+    return pickers() + `<div class="card">
+      <label>Teacher title</label>
+      <select id="tt">${TITLES.map(t => `<option${t === loadTeacherTitle() ? ' selected' : ''}>${t}</option>`).join('')}</select>
+      <label>Teacher name (printed on report)</label>
+      <input id="tn" value="${e(window.teacher || loadTeacherName())}">
+      <label>Marital status</label>
+      <select id="ts">${STATUSES.map(s => `<option${s === loadTeacherStatus() ? ' selected' : ''}>${s}</option>`).join('')}</select>
+      <button class="b" id="pdf">Download PDF</button>
+      <button class="b alt" id="doc">Download Word</button>
+    </div>
+    <div class="card" id="rep">${repHTML()}</div>`;
   }
 
   function bReport() {
     const teacherInput = $('tn');
+    const titleSelect = $('tt');
+    const statusSelect = $('ts');
     if (!teacherInput) return;
-    teacherInput.onchange = () => {
-      saveTeacherName(teacherInput.value);
+    
+    const updateReport = () => {
       const rep = $('rep');
       if (rep) rep.innerHTML = repHTML();
     };
 
-    const base = `Report_${cs().name}_${cc().name}_Week${sel.w}`.replace(/[^\w]+/g, '_');
+    teacherInput.onchange = () => {
+      saveTeacherName(teacherInput.value);
+      updateReport();
+    };
+
+    if (titleSelect) {
+      titleSelect.onchange = () => {
+        saveTeacherTitle(titleSelect.value);
+        updateReport();
+      };
+    }
+
+    if (statusSelect) {
+      statusSelect.onchange = () => {
+        saveTeacherStatus(statusSelect.value);
+        updateReport();
+      };
+    }
+
+    const base = `Report_${cs().name}_${GRADES[sel.c]}_Week${sel.w}`.replace(/[^\w]+/g, '_');
     const save = (name, blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -486,6 +556,8 @@
 
   (async () => {
     loadTeacherName();
+    loadTeacherTitle();
+    loadTeacherStatus();
     render();
     if (!SB) return;
     SB.auth.onAuthStateChange((_event, session) => {
