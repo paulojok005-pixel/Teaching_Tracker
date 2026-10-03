@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teaching Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>🏫</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#eef3f6;--card:#fff;--ink:#12262e;--mut:#5b6f78;--ac:#0f6b7a;--acd:#0a4a55;--ln:#d3dee3;--ok:#d7f0df;--mid:#fff0c2;--bad:#fbd9d6}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a1f;--card:#16262d;--ink:#e6eff2;--mut:#93a8b0;--ac:#4fb6c6;--acd:#8fd6e2;--ln:#2a3f48;--ok:#1d4a30;--mid:#4d4118;--bad:#55231f}}
+:root[data-theme="dark"]{--bg:#0e1a1f;--card:#16262d;--ink:#e6eff2;--mut:#93a8b0;--ac:#4fb6c6;--acd:#8fd6e2;--ln:#2a3f48;--ok:#1d4a30;--mid:#4d4118;--bad:#55231f}
+html,body{margin:0;height:auto;background:var(--bg);color:var(--ink);font:16px/1.45 "Atkinson Hyperlegible",system-ui,sans-serif}
+*{box-sizing:border-box}
+header{background:var(--acd);color:#fff;padding:14px 16px 0}
+header h1{margin:0 0 10px;font-size:1.25rem}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{flex:1;min-width:84px;border:0;background:transparent;color:#cfe6ea;padding:10px 8px;font:inherit;font-weight:700;border-radius:8px 8px 0 0;cursor:pointer}
+nav button.on{background:var(--bg);color:var(--acd)}
+@media(prefers-color-scheme:dark){nav button.on{color:var(--ink)}}
+main{max-width:860px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:14px;overflow-x:auto}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:130px}
+label{display:block;font-size:.85rem;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--ln);border-radius:7px;padding:9px}
+textarea{min-height:60px}
+button.b{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;margin:8px 8px 0 0}
+button.b.alt{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--ln);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--bg);font-size:.85rem}
+td input{padding:6px}.c1{background:var(--ok)}.c2{background:var(--mid)}.c3{background:var(--bad)}
+.mut{color:var(--mut);font-size:.9rem}.bar{height:14px;background:var(--ac);border-radius:4px}
+h2{margin:.2rem 0 .6rem;font-size:1.1rem}h3{margin:.8rem 0 .3rem;font-size:1rem}
+#msg{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--acd);color:#fff;padding:8px 16px;border-radius:20px;display:none}
+</style></head><body>
+<header><h1>Teaching Tracker</h1><nav id="nav"></nav></header>
+<main id="m"><p class="mut">Loading…</p></main><div id="msg"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
+<script>
+const e=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+/* ====== PASTE YOUR TWO SUPABASE VALUES HERE ====== */
+const SUPABASE_URL='https://jcyqjqilnlibsbgaflku.supabase.co', SUPABASE_KEY='sb_publishable_4dXNQpQhyPtZDXoOmDThUg_AcfjlxaX';
+/* ================================================= */
+let SB=null,uid=null;try{if(window.supabase&&/^https?:\/\//.test(SUPABASE_URL))SB=supabase.createClient(SUPABASE_URL,SUPABASE_KEY)}catch(x){console.error(x)}
+const rowsOf=async t=>{const{data,error}=await SB.from(t).select('id,data');if(error)throw error;return data.map(r=>({id:r.id,...r.data}))};
+async function load(){try{S=await rowsOf('schools');Ls=await rowsOf('lessons')}catch(x){toast('Load failed: '+x.message)}render()}
+const put=async(t,id,d)=>{const{error}=await SB.from(t).upsert({id,user_id:uid,data:d});if(error){toast('Save failed: '+error.message);throw error}await load()};
+const add=async(t,d)=>{const id=crypto.randomUUID();await put(t,id,d);return{id}};
+const del=async(t,id)=>{await SB.from(t).delete().eq('id',id)};
+function loginHTML(){return`<div class="card"><h2>Sign in</h2><label>Email</label><input id="em" type="email" autocomplete="email"><label>Password (6+ characters)</label><input id="pw" type="password" autocomplete="current-password">
+<button class="b" id="in">Sign in</button><button class="b alt" id="up">Create account</button><button class="b alt" id="rs">Forgot password</button><p id="err" style="color:#c0392b;min-height:1.4em;margin:10px 0 0"></p></div>`}
+function bindLogin(){
+  const say=t=>{$('err').textContent=t};
+  const bad=!window.supabase?'The sign-in library did not load. Check your internet connection and reload.':(!SB?'Not set up yet: paste your Supabase Project URL (starting with https://) and anon key at the top of index.html, then upload the file again.':'');
+  if(bad)say(bad);
+  const run=async(fn,ok,reset)=>{
+    if(bad)return say(bad);
+    const em=$('em').value.trim(),pw=$('pw').value;
+    if(!em||(!pw&&!reset))return say('Enter your email'+(reset?'.':' and password.'));
+    say('Working…');
+    try{const{data,error}=await fn(em,pw);if(error)return say(error.message);say(ok(data))}
+    catch(x){say('Network error: '+x.message)}
+  };
+  $('in').onclick=()=>run((e,p)=>SB.auth.signInWithPassword({email:e,password:p}),()=>'');
+  $('up').onclick=()=>run((e,p)=>SB.auth.signUp({email:e,password:p}),d=>d&&d.session?'':'Account created. Check your email to confirm it, then sign in. (Or turn off "Confirm email" in Supabase.)');
+  $('rs').onclick=()=>run(e=>SB.auth.resetPasswordForEmail(e,{redirectTo:location.href}),()=>'Reset link sent. Check your email.',true);
+}
+let dl=null,S=[],Ls=[],tab='Lesson',sel={s:'',c:0,w:1};
+const TABS=['Lesson','Report','Progress','Schools'];
+const EX=80,ME=50,DE=35; // level cut-offs (%)
+const lv=p=>p>=EX?['Exceeds',1]:p>=ME?['Meets',1]:p>=DE?['Developing',2]:['Not yet',3];
+function toast(t){const m=$('msg');m.textContent=t;m.style.display='block';setTimeout(()=>m.style.display='none',2600)}
+const cs=()=>S.find(x=>x.id===sel.s)||S[0];
+const cc=()=>{const s=cs();return s&&s.classes&&s.classes[sel.c]?s.classes[sel.c]:null};
+const lessonsOf=()=>{const s=cs();return s?Ls.filter(l=>l.sid===s.id&&l.ci==sel.c).sort((a,b)=>a.w-b.w):[]};
+const lessonAt=w=>lessonsOf().find(l=>l.w==w);
+function stats(l,cls){
+  const pu=cls.pupils||[],mk=(l&&l.marks)||{};let pr=0,sc=[];
+  pu.forEach(n=>{const m=mk[n]||{};if(m.p)pr++;if(m.s!==''&&m.s!=null&&l.outOf>0)sc.push([n,m.s/l.outOf*100])});
+  const avg=sc.length?sc.reduce((a,b)=>a+b[1],0)/sc.length:null;
+  return{pr,tot:pu.length,sc,avg,att:pu.length?pr/pu.length*100:null};
+}
+const pct=v=>v==null?'–':Math.round(v)+'%';
+function pickers(){
+  if(!S.length)return'';const s=cs();
+  return`<div class="card"><div class="row"><div><label>School</label><select id="ps">${S.map(x=>`<option value="${x.id}"${x.id===s.id?' selected':''}>${e(x.name)}</option>`).join('')}</select></div>
+  <div><label>Class</label><select id="pc">${(s.classes||[]).map((c,i)=>`<option value="${i}"${i==sel.c?' selected':''}>${e(c.name)}</option>`).join('')}</select></div>
+  ${tab==='Lesson'||tab==='Report'?`<div><label>Term week</label><select id="pw">${[...Array(14)].map((_,i)=>`<option${i+1==sel.w?' selected':''}>${i+1}</option>`).join('')}</select></div>`:''}</div></div>`;
+}
+function bindPick(){
+  const f=(id,fn)=>{const x=$(id);if(x)x.onchange=()=>{fn(x.value);render()}};
+  f('ps',v=>{sel.s=v;sel.c=0});f('pc',v=>sel.c=+v);f('pw',v=>sel.w=+v);
+}
+const need=()=>!S.length?'<div class="card">Add a school first (Schools tab).</div>':!cc()?'<div class="card">Add a class to this school first (Schools tab).</div>':'';
+
+/* ---------- Schools ---------- */
+function vSchools(){
+  return`<div class="card"><h2>Add a school</h2><input id="sn" placeholder="School name"><button class="b" id="sa">Add school</button></div>`+
+  S.map(s=>`<div class="card"><h2>${e(s.name)}</h2>
+   ${(s.classes||[]).map(c=>`<p><b>${e(c.name)}</b> <span class="mut">– ${(c.pupils||[]).length} pupils: ${e((c.pupils||[]).join(', '))}</span></p>`).join('')||'<p class="mut">No classes yet.</p>'}
+   <div class="row"><div><label>Class name (e.g. Primary 4)</label><input id="cn_${s.id}"></div></div>
+   <label>Pupils, one name per line (adds to the class; new class if the name is new)</label><textarea id="pn_${s.id}"></textarea>
+   <button class="b" data-sid="${s.id}">Save class / pupils</button>
+   <button class="b alt" data-del="${s.id}">Delete school</button></div>`).join('');
+}
+function bSchools(){
+  $('sa').onclick=async()=>{const n=$('sn').value.trim();if(!n)return;const r=await add('schools',{name:n,classes:[]});sel.s=r.id;toast('School added')};
+  document.querySelectorAll('[data-sid]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.sid,s=S.find(x=>x.id===id),cn=$('cn_'+id).value.trim(),
+      pn=$('pn_'+id).value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(!cn)return toast('Enter a class name');
+    const cl=JSON.parse(JSON.stringify(s.classes||[]));let c=cl.find(x=>x.name===cn);
+    if(!c){c={name:cn,pupils:[]};cl.push(c)}
+    pn.forEach(n=>{if(!c.pupils.includes(n))c.pupils.push(n)});
+    await put('schools',id,{name:s.name,classes:cl});toast('Saved');
+  });
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(confirm('Delete this school and all its lessons?')){const id=b.dataset.del;
+      for(const l of Ls.filter(l=>l.sid===id))await del('lessons',l.id);
+      await del('schools',id);sel.s='';sel.c=0;await load()}});
+}
+
+/* ---------- Lesson ---------- */
+const FLD=[['topic','Topic taught'],['objective','Learning objective'],['resources','Resources used'],['split','Practical / theory split (e.g. 30/70)'],['homework','Homework given'],['challenges','Challenges'],['worked','What worked / what I would change'],['next','Next topic'],['prep','Prep & requests for next week']];
+function vLesson(){
+  const n=need();if(n)return pickers()+n;
+  const cls=cc(),l=lessonAt(sel.w)||{},prev=lessonAt(sel.w-1),mk=l.marks||{};
+  const sel2=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option${o==v?' selected':''}>${o}</option>`).join('')}</select>`;
+  return pickers()+`<div class="card"><h2>${l.topic?'Edit':'New'} lesson – week ${sel.w}</h2>
+  ${prev&&prev.next?`<p class="mut">Planned last week: ${e(prev.next)}</p>`:''}
+  <div class="row"><div><label>Date</label><input type="date" id="f_date" value="${e(l.date)}"></div>
+  <div><label>Content completed?</label>${sel2('f_done',['Yes','Partly','No'],l.done||'Yes')}</div>
+  <div><label>My confidence (1-5)</label>${sel2('f_conf',[1,2,3,4,5],l.conf||3)}</div></div>
+  ${FLD.map(([k,t])=>`<label>${t}</label><textarea id="f_${k}">${e(l[k]||(k==='topic'&&prev?prev.next:'')||'')}</textarea>`).join('')}
+  <h3>Assessment & attendance</h3>
+  <div class="row"><div><label>Assessment type</label>${sel2('f_type',['Quiz','Practical task','Oral questions','Observation','Homework check'],l.type||'Quiz')}</div>
+  <div><label>Marks out of</label><input type="number" id="f_outOf" min="1" value="${e(l.outOf||10)}"></div></div>
+  <table style="margin-top:10px"><tr><th>Pupil</th><th>Present</th><th>Score</th><th>Remark / behaviour</th></tr>
+  ${(cls.pupils||[]).map((p,i)=>{const m=mk[p]||{};return`<tr><td>${e(p)}</td><td><input type="checkbox" id="p${i}"${(l.marks?m.p:true)?' checked':''}></td>
+  <td style="width:80px"><input type="number" id="s${i}" value="${e(m.s)}"></td><td><input id="r${i}" value="${e(m.r)}"></td></tr>`}).join('')||'<tr><td colspan=4 class="mut">Add pupils in the Schools tab.</td></tr>'}</table>
+  <button class="b" id="save">Save lesson</button></div>`;
+}
+function bLesson(){
+  const sv=$('save');if(!sv)return;
+  sv.onclick=async()=>{
+    const s=cs(),cls=cc(),d={sid:s.id,ci:sel.c,cls:cls.name,w:sel.w,marks:{}};
+    d.date=$('f_date').value;d.done=$('f_done').value;d.conf=+$('f_conf').value;d.type=$('f_type').value;d.outOf=+$('f_outOf').value||10;
+    FLD.forEach(([k])=>d[k]=$('f_'+k).value.trim());
+    (cls.pupils||[]).forEach((p,i)=>d.marks[p]={p:$('p'+i).checked?1:0,s:$('s'+i).value===''?'':+$('s'+i).value,r:$('r'+i).value.trim()});
+    try{await put('lessons',`${s.id}_${sel.c}_${sel.w}`,d);toast('Lesson saved')}catch(x){toast('Could not save: '+(x.message||x.code))}
+  };
+}
+
+/* ---------- Report ---------- */
+function repHTML(){
+  const s=cs(),cls=cc(),l=lessonAt(sel.w);
+  const H=`<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:6px"><h2 style="margin:0">Weekly Teaching Report – Computer Basics</h2>
+  <p style="margin:4px 0 10px">${e(s.name)} · ${e(cls.name)} · Week ${sel.w}${l&&l.date?' · '+e(l.date):''}</p>`;
+  if(!l)return H+'<p>No lesson logged for this week yet (use the Lesson tab).</p></div>';
+  const st=stats(l,cls),pv=lessonAt(sel.w-1),pa=pv?stats(pv,cls).avg:null,all=lessonsOf().map(x=>stats(x,cls));
+  const av=a=>{const v=a.filter(x=>x!=null);return v.length?v.reduce((p,q)=>p+q,0)/v.length:null};
+  const cnt=n=>st.sc.filter(x=>lv(x[1])[0]===n).length;
+  const names=f=>st.sc.filter(x=>f(lv(x[1])[0])).map(x=>x[0]).join(', ')||'–';
+  const absent=(cls.pupils||[]).filter(p=>!((l.marks||{})[p]||{}).p).join(', ')||'–';
+  const remarks=(cls.pupils||[]).filter(p=>((l.marks||{})[p]||{}).r).map(p=>`${e(p)}: ${e(l.marks[p].r)}`).join('<br>')||'–';
+  const R=(a,b)=>`<tr><td style="border:1px solid #999;padding:5px;width:34%;font-weight:bold;vertical-align:top">${a}</td><td style="border:1px solid #999;padding:5px">${b||'–'}</td></tr>`;
+  const T=(t)=>`<h3 style="margin:14px 0 4px;font-size:14px;background:#dde8ec;padding:4px">${t}</h3><table style="border-collapse:collapse;width:100%;font-size:12px">`;
+  return H+T('1. Lesson summary')+R('Topic',e(l.topic))+R('Objective',e(l.objective))+R('Resources',e(l.resources))+R('Practical / theory',e(l.split))+R('Homework given',e(l.homework))+
+  R('Attendance',`${st.pr} of ${st.tot} present (${pct(st.att)})`)+R('Absent',e(absent))+'</table>'+
+  T('2. Pupil performance')+R('Assessment',`${e(l.type)}, out of ${l.outOf}`)+R('Pupils assessed',st.sc.length)+R('Class average',pct(st.avg)+(pa!=null&&st.avg!=null?` (${st.avg>=pa?'+':''}${Math.round(st.avg-pa)} vs last week)`:''))+
+  R('Highest / lowest',st.sc.length?pct(Math.max(...st.sc.map(x=>x[1])))+' / '+pct(Math.min(...st.sc.map(x=>x[1]))):'–')+
+  R('Levels',`Exceeds ${cnt('Exceeds')} · Meets ${cnt('Meets')} · Developing ${cnt('Developing')} · Not yet ${cnt('Not yet')}`)+
+  R('Pupils excelling',e(names(n=>n==='Exceeds')))+R('Pupils needing support',e(names(n=>n==='Developing'||n==='Not yet')))+R('Pupil remarks',remarks)+'</table>'+
+  T('3. Self-evaluation')+R('Challenges',e(l.challenges))+R('Content completed',e(l.done))+R('Confidence (1-5)',l.conf)+R('What worked / change',e(l.worked))+'</table>'+
+  T('4. Next week')+R('Next topic',e(l.next))+R('Prep & requests',e(l.prep))+'</table>'+
+  T('Term to date')+R('Lessons taught',all.length)+R('Average attendance',pct(av(all.map(x=>x.att))))+R('Average score',pct(av(all.map(x=>x.avg))))+'</table>'+
+  `<p style="font-size:11px;margin-top:14px">Prepared by: ${e(window.teacher||'')}</p></div>`;
+}
+function vReport(){
+  const n=need();if(n)return pickers()+n;
+  return pickers()+`<div class="card"><label>Teacher name (printed on report)</label><input id="tn" value="${e(window.teacher||'')}">
+  <button class="b" id="pdf">Download PDF</button><button class="b alt" id="doc">Download Word</button></div>
+  <div class="card" id="rep">${repHTML()}</div>`;
+}
+function bReport(){
+  if(!$('pdf'))return;
+  $('tn').onchange=()=>{window.teacher=$('tn').value;$('rep').innerHTML=repHTML()};
+  const base=`Report_${cs().name}_${cc().name}_Week${sel.w}`.replace(/[^\w]+/g,'_');
+  const save=async(name,data)=>{const u=URL.createObjectURL(data),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);toast('Saved')};
+  $('pdf').onclick=async()=>{if(!window.html2pdf)return toast('PDF tool did not load – check internet');
+    toast('Preparing PDF…');const b=await html2pdf().set({margin:10,jsPDF:{unit:'mm',format:'a4'},html2canvas:{scale:2}}).from($('rep')).outputPdf('blob');save(base+'.pdf',b)};
+  $('doc').onclick=()=>{if(!window.htmlDocx)return toast('Word tool did not load – check internet');
+    save(base+'.docx',htmlDocx.asBlob('<!DOCTYPE html><html><body>'+repHTML()+'</body></html>'))};
+}
+
+/* ---------- Progress ---------- */
+function vProgress(){
+  const n=need();if(n)return pickers()+n;
+  const cls=cc(),ls=lessonsOf(),sts=ls.map(l=>stats(l,cls));
+  const rows=(cls.pupils||[]).map(p=>{
+    let pr=0,sc=[];ls.forEach(l=>{const m=(l.marks||{})[p];if(m){if(m.p)pr++;if(m.s!==''&&m.s!=null)sc.push(m.s/l.outOf*100)}});
+    const av=sc.length?sc.reduce((a,b)=>a+b,0)/sc.length:null,L=av==null?['–',0]:lv(av);
+    return`<tr><td>${e(p)}</td><td>${ls.length?pct(pr/ls.length*100):'–'}</td><td>${pct(av)}</td><td class="c${L[1]}">${L[0]}</td><td>${sc.slice(-5).map(Math.round).join(' · ')||'–'}</td></tr>`}).join('');
+  return pickers()+`<div class="card"><h2>Pupil progress</h2><table><tr><th>Pupil</th><th>Attendance</th><th>Average</th><th>Level</th><th>Last scores</th></tr>${rows||'<tr><td colspan=5>No pupils yet.</td></tr>'}</table></div>
+  <div class="card"><h2>Class average by week</h2>${ls.map((l,i)=>`<div class="row" style="align-items:center;flex-wrap:nowrap;margin:4px 0"><span style="flex:0 0 60px">Wk ${l.w}</span><div style="flex:1"><div class="bar" style="width:${sts[i].avg||0}%"></div></div><span style="flex:0 0 150px" class="mut">${pct(sts[i].avg)} score · ${pct(sts[i].att)} att.</span></div>`).join('')||'<p class="mut">No lessons yet.</p>'}</div>`;
+}
+
+/* ---------- App ---------- */
+function render(){
+  $('nav').innerHTML=(uid?TABS:[]).map(t=>`<button class="${t===tab?'on':''}" data-t="${t}">${t}</button>`).join('')+(uid?'<button id="out">Sign out</button>':'');
+  if($('out'))$('out').onclick=()=>SB.auth.signOut();
+  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+  if(!uid){$('m').innerHTML=loginHTML();bindLogin();return}
+  if(!sel.s&&S[0])sel.s=S[0].id;
+  $('m').innerHTML={Lesson:vLesson,Report:vReport,Progress:vProgress,Schools:vSchools}[tab]();
+  bindPick();({Lesson:bLesson,Report:bReport,Schools:bSchools}[tab]||(()=>{}))();
+}
+(async()=>{
+  render();if(!SB)return;
+  SB.auth.onAuthStateChange((_ev,ses)=>{const n=ses&&ses.user?ses.user.id:null;if(n===uid)return;uid=n;if(uid)load();else{S=[];Ls=[];render()}});
+})();
+</script></body></html>
