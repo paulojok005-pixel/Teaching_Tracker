@@ -7,7 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>🏫</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#eef3f6;--card:#fff;--ink:#12262e;--mut:#5b6f78;--ac:#0f6b7a;--acd:#0a4a55;--ln:#e0e6eb;--ok:#c6e8d4;--mid:#f7f0d9;--bad:#f4d4d1}
+    :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#eef3f6;--card:#fff;--ink:#12262e;--mut:#5b6f78;--ac:#0f6b7a;--acd:#0a4a55;--ln:#d7e3e9;--ok:#dff4e7;--mid:#f8f0d7;--bad:#f7d9d5}
     @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a1f;--card:#16262d;--ink:#e6eff2;--mut:#93a8b0;--ac:#4fb6c6;--acd:#8fd6e2;--ln:#2a3f48;--ok:#1d4a30;--mid:#4d4118;--bad:#55231f}}
     :root[data-theme="dark"]{--bg:#0e1a1f;--card:#16262d;--ink:#e6eff2;--mut:#93a8b0;--ac:#4fb6c6;--acd:#8fd6e2;--ln:#2a3f48;--ok:#1d4a30;--mid:#4d4118;--bad:#55231f}
     html,body{margin:0;height:auto;background:var(--bg);color:var(--ink);font:16px/1.45 "Atkinson Hyperlegible",system-ui,sans-serif}
@@ -34,6 +34,12 @@
     #msg{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--acd);color:#fff;padding:8px 16px;border-radius:20px;display:none;z-index:50;max-width:90vw;text-align:center}
     .error{color:#b42318;font-weight:700}
     .sr-only{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+    .auth-tabs{display:flex;gap:8px;margin-bottom:14px}
+    .auth-tabs button{flex:1;padding:10px;border:1px solid var(--ln);background:transparent;border-radius:6px;cursor:pointer;font-weight:700}
+    .auth-tabs button.active{background:var(--ac);color:#fff;border-color:var(--ac)}
+    .auth-panel{display:none}
+    .auth-panel.active{display:block}
+    .country-select{max-height:200px;overflow-y:auto}
   </style>
 </head>
 <body>
@@ -48,9 +54,16 @@
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
 <script>
+  // Country codes list (all countries in the world)
+  const COUNTRY_CODES = [
+    {name:'Afghanistan',code:'+93'},{name:'Albania',code:'+355'},{name:'Algeria',code:'+213'},{name:'Andorra',code:'+376'},{name:'Angola',code:'+244'},{name:'Antigua and Barbuda',code:'+1-268'},{name:'Argentina',code:'+54'},{name:'Armenia',code:'+374'},{name:'Australia',code:'+61'},{name:'Austria',code:'+43'},{name:'Azerbaijan',code:'+994'},{name:'Bahamas',code:'+1-242'},{name:'Bahrain',code:'+973'},{name:'Bangladesh',code:'+880'},{name:'Barbados',code:'+1-246'},{name:'Belarus',code:'+375'},{name:'Belgium',code:'+32'},{name:'Belize',code:'+501'},{name:'Benin',code:'+229'},{name:'Bhutan',code:'+975'},{name:'Bolivia',code:'+591'},{name:'Bosnia and Herzegovina',code:'+387'},{name:'Botswana',code:'+267'},{name:'Brazil',code:'+55'},{name:'Brunei',code:'+673'},{name:'Bulgaria',code:'+359'},{name:'Burkina Faso',code:'+226'},{name:'Burundi',code:'+257'},{name:'Cambodia',code:'+855'},{name:'Cameroon',code:'+237'},{name:'Canada',code:'+1'},{name:'Cape Verde',code:'+238'},{name:'Central African Republic',code:'+236'},{name:'Chad',code:'+235'},{name:'Chile',code:'+56'},{name:'China',code:'+86'},{name:'Colombia',code:'+57'},{name:'Comoros',code:'+269'},{name:'Congo',code:'+242'},{name:'Costa Rica',code:'+506'},{name:'Croatia',code:'+385'},{name:'Cuba',code:'+53'},{name:'Cyprus',code:'+357'},{name:'Czech Republic',code:'+420'},{name:'Denmark',code:'+45'},{name:'Djibouti',code:'+253'},{name:'Dominica',code:'+1-767'},{name:'Dominican Republic',code:'+1-809'},{name:'Ecuador',code:'+593'},{name:'Egypt',code:'+20'},{name:'El Salvador',code:'+503'},{name:'Equatorial Guinea',code:'+240'},{name:'Eritrea',code:'+291'},{name:'Estonia',code:'+372'},{name:'Ethiopia',code:'+251'},{name:'Fiji',code:'+679'},{name:'Finland',code:'+358'},{name:'France',code:'+33'},{name:'Gabon',code:'+241'},{name:'Gambia',code:'+220'},{name:'Georgia',code:'+995'},{name:'Germany',code:'+49'},{name:'Ghana',code:'+233'},{name:'Greece',code:'+30'},{name:'Grenada',code:'+1-473'},{name:'Guatemala',code:'+502'},{name:'Guinea',code:'+224'},{name:'Guinea-Bissau',code:'+245'},{name:'Guyana',code:'+592'},{name:'Haiti',code:'+509'},{name:'Honduras',code:'+504'},{name:'Hong Kong',code:'+852'},{name:'Hungary',code:'+36'},{name:'Iceland',code:'+354'},{name:'India',code:'+91'},{name:'Indonesia',code:'+62'},{name:'Iran',code:'+98'},{name:'Iraq',code:'+964'},{name:'Ireland',code:'+353'},{name:'Israel',code:'+972'},{name:'Italy',code:'+39'},{name:'Jamaica',code:'+1-876'},{name:'Japan',code:'+81'},{name:'Jordan',code:'+962'},{name:'Kazakhstan',code:'+7'},{name:'Kenya',code:'+254'},{name:'Kiribati',code:'+686'},{name:'Kuwait',code:'+965'},{name:'Kyrgyzstan',code:'+996'},{name:'Laos',code:'+856'},{name:'Latvia',code:'+371'},{name:'Lebanon',code:'+961'},{name:'Lesotho',code:'+266'},{name:'Liberia',code:'+231'},{name:'Libya',code:'+218'},{name:'Liechtenstein',code:'+423'},{name:'Lithuania',code:'+370'},{name:'Luxembourg',code:'+352'},{name:'Macao',code:'+853'},{name:'Madagascar',code:'+261'},{name:'Malawi',code:'+265'},{name:'Malaysia',code:'+60'},{name:'Maldives',code:'+960'},{name:'Mali',code:'+223'},{name:'Malta',code:'+356'},{name:'Marshall Islands',code:'+692'},{name:'Mauritania',code:'+222'},{name:'Mauritius',code:'+230'},{name:'Mexico',code:'+52'},{name:'Micronesia',code:'+691'},{name:'Moldova',code:'+373'},{name:'Monaco',code:'+377'},{name:'Mongolia',code:'+976'},{name:'Montenegro',code:'+382'},{name:'Morocco',code:'+212'},{name:'Mozambique',code:'+258'},{name:'Myanmar',code:'+95'},{name:'Namibia',code:'+264'},{name:'Nauru',code:'+674'},{name:'Nepal',code:'+977'},{name:'Netherlands',code:'+31'},{name:'New Zealand',code:'+64'},{name:'Nicaragua',code:'+505'},{name:'Niger',code:'+227'},{name:'Nigeria',code:'+234'},{name:'North Korea',code:'+850'},{name:'North Macedonia',code:'+389'},{name:'Norway',code:'+47'},{name:'Oman',code:'+968'},{name:'Pakistan',code:'+92'},{name:'Palau',code:'+680'},{name:'Palestine',code:'+970'},{name:'Panama',code:'+507'},{name:'Papua New Guinea',code:'+675'},{name:'Paraguay',code:'+595'},{name:'Peru',code:'+51'},{name:'Philippines',code:'+63'},{name:'Poland',code:'+48'},{name:'Portugal',code:'+351'},{name:'Qatar',code:'+974'},{name:'Romania',code:'+40'},{name:'Russia',code:'+7'},{name:'Rwanda',code:'+250'},{name:'Saint Kitts and Nevis',code:'+1-869'},{name:'Saint Lucia',code:'+1-758'},{name:'Saint Vincent and the Grenadines',code:'+1-784'},{name:'Samoa',code:'+685'},{name:'San Marino',code:'+378'},{name:'Sao Tome and Principe',code:'+239'},{name:'Saudi Arabia',code:'+966'},{name:'Senegal',code:'+221'},{name:'Serbia',code:'+381'},{name:'Seychelles',code:'+248'},{name:'Sierra Leone',code:'+232'},{name:'Singapore',code:'+65'},{name:'Slovakia',code:'+421'},{name:'Slovenia',code:'+386'},{name:'Solomon Islands',code:'+677'},{name:'Somalia',code:'+252'},{name:'South Africa',code:'+27'},{name:'South Korea',code:'+82'},{name:'South Sudan',code:'+211'},{name:'Spain',code:'+34'},{name:'Sri Lanka',code:'+94'},{name:'Sudan',code:'+249'},{name:'Suriname',code:'+597'},{name:'Sweden',code:'+46'},{name:'Switzerland',code:'+41'},{name:'Syria',code:'+963'},{name:'Taiwan',code:'+886'},{name:'Tajikistan',code:'+992'},{name:'Tanzania',code:'+255'},{name:'Thailand',code:'+66'},{name:'Timor-Leste',code:'+670'},{name:'Togo',code:'+228'},{name:'Tonga',code:'+676'},{name:'Trinidad and Tobago',code:'+1-868'},{name:'Tunisia',code:'+216'},{name:'Turkey',code:'+90'},{name:'Turkmenistan',code:'+993'},{name:'Tuvalu',code:'+688'},{name:'Uganda',code:'+256'},{name:'Ukraine',code:'+380'},{name:'United Arab Emirates',code:'+971'},{name:'United Kingdom',code:'+44'},{name:'United States',code:'+1'},{name:'Uruguay',code:'+598'},{name:'Uzbekistan',code:'+998'},{name:'Vanuatu',code:'+678'},{name:'Vatican City',code:'+39-06'},{name:'Venezuela',code:'+58'},{name:'Vietnam',code:'+84'},{name:'Yemen',code:'+967'},{name:'Zambia',code:'+260'},{name:'Zimbabwe',code:'+263'}
+  ];
+
   const e = s => String(s == null ? '' : s).replace(/[&<>\"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const $ = id => document.getElementById(id);
   const TEACHER_KEY = 'teaching-tracker.teacher-name';
+  const PHONE_KEY = 'teaching-tracker.phone';
+  const COUNTRY_KEY = 'teaching-tracker.country';
   const SUPABASE_URL = 'https://jcyqjqilnlibsbgaflku.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_4dXNQpQhyPtZDXoOmDThUg_AcfjlxaX';
   const TABS = ['Lesson', 'Report', 'Progress', 'Schools'];
@@ -70,6 +83,13 @@
     const name = localStorage.getItem(TEACHER_KEY) || '';
     window.teacher = name;
     return name;
+  };
+  const savePhone = (phone, country) => {
+    localStorage.setItem(PHONE_KEY, phone);
+    localStorage.setItem(COUNTRY_KEY, country);
+  };
+  const loadPhone = () => {
+    return { phone: localStorage.getItem(PHONE_KEY) || '', country: localStorage.getItem(COUNTRY_KEY) || '+256' };
   };
 
   function toast(message, isError = false) {
@@ -162,8 +182,46 @@
     render();
   }
 
+  function buildCountryOptions() {
+    return COUNTRY_CODES.map(c => `<option value="${c.code}">${c.name} (${c.code})</option>`).join('');
+  }
+
   function loginHTML() {
-    return `<div class="card"><h2>Sign in</h2><label>Email</label><input id="em" type="email" autocomplete="email"><label>Password (6+ characters)</label><input id="pw" type="password" autocomplete="current-password"><button class="b" id="in">Sign in</button><button class="b alt" id="up">Create account</button><button class="b alt" id="rs">Forgot password</button><p id="err" class="error" style="min-height:1.4em"></p></div>`;
+    const savedPhone = loadPhone();
+    return `
+      <div class="card">
+        <h2>Sign in</h2>
+        <div class="auth-tabs">
+          <button class="auth-tab-btn active" data-tab="email">Email</button>
+          <button class="auth-tab-btn" data-tab="phone">Phone</button>
+        </div>
+
+        <!-- Email Panel -->
+        <div class="auth-panel active" id="email-panel">
+          <label>Email</label>
+          <input id="em" type="email" autocomplete="email" placeholder="your@email.com">
+          <label>Password (6+ characters)</label>
+          <input id="pw" type="password" autocomplete="current-password" placeholder="••••••">
+          <button class="b" id="in">Sign in</button>
+          <button class="b alt" id="up">Create account</button>
+          <button class="b alt" id="rs">Forgot password</button>
+        </div>
+
+        <!-- Phone Panel -->
+        <div class="auth-panel" id="phone-panel">
+          <label>Select Country</label>
+          <select id="country-code" class="country-select">
+            ${buildCountryOptions()}
+          </select>
+          <label>Phone Number</label>
+          <input id="phone-input" type="tel" placeholder="700123456" value="${e(savedPhone.phone)}">
+          <p class="mut" style="font-size: 0.8rem;">Enter number without country code (e.g., 700123456 for Uganda)</p>
+          <button class="b" id="phone-save">Save Phone Contact</button>
+        </div>
+
+        <p id="err" class="error" style="min-height:1.4em"></p>
+      </div>
+    `;
   }
 
   function bindLogin() {
@@ -171,6 +229,18 @@
     const bad = !window.supabase ? 'The sign-in library did not load. Check your internet connection and reload.' : (!SB ? 'Not set up yet: paste your Supabase Project URL and anon key in the page source.' : '');
     if (bad) say(bad);
 
+    // Tab switching
+    document.querySelectorAll('.auth-tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.auth-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const tabName = btn.dataset.tab;
+        $(tabName + '-panel').classList.add('active');
+      };
+    });
+
+    // Email login
     const run = async (fn, okMessage, isReset = false) => {
       if (bad) return say(bad);
       const em = $('em').value.trim();
@@ -186,9 +256,29 @@
       }
     };
 
-    $('in').onclick = () => run((email, password) => SB.auth.signInWithPassword({ email, password }), () => '');
-    $('up').onclick = () => run((email, password) => SB.auth.signUp({ email, password }), data => data && data.session ? '' : 'Account created. Check your email to confirm it, then sign in.');
-    $('rs').onclick = () => run(email => SB.auth.resetPasswordForEmail(email, { redirectTo: location.href }), () => 'Reset link sent. Check your email.', true);
+    if ($('in')) $('in').onclick = () => run((email, password) => SB.auth.signInWithPassword({ email, password }), () => '');
+    if ($('up')) $('up').onclick = () => run((email, password) => SB.auth.signUp({ email, password }), data => data && data.session ? '' : 'Account created. Check your email to confirm it, then sign in.');
+    if ($('rs')) $('rs').onclick = () => run(email => SB.auth.resetPasswordForEmail(email, { redirectTo: location.href }), () => 'Reset link sent. Check your email.', true);
+
+    // Phone contact
+    if ($('phone-save')) {
+      $('phone-save').onclick = () => {
+        const phone = ($('phone-input').value || '').trim();
+        const country = $('country-code').value;
+        if (!phone) return say('Enter your phone number.');
+        if (!country) return say('Select a country.');
+        savePhone(phone, country);
+        toast('Phone contact saved: ' + country + phone);
+      };
+    }
+
+    // Set country code on select change
+    if ($('country-code')) {
+      const savedPhone = loadPhone();
+      if (savedPhone.country) {
+        $('country-code').value = savedPhone.country;
+      }
+    }
   }
 
   const cs = () => S.find(x => x.id === sel.s) || S[0] || null;
@@ -222,8 +312,7 @@
     const s = cs();
     return `<div class="card"><div class="row"><div><label>School</label><select id="ps">${S.map(x => `<option value="${x.id}"${x.id===s.id?' selected':''}>${e(x.name)}</option>`).join('')}</select></div>
     <div><label>Class</label><select id="pc">${(s.classes || []).map((c, i) => `<option value="${i}"${i==sel.c?' selected':''}>${e(c.name)}</option>`).join('')}</select></div>
-    ${(tab === 'Lesson' || tab === 'Report') ? `<div><label>Term week</label><select id="pw">${[...Array(14)].map((_, i) => `<option${i + 1 == sel.w ? ' selected' : ''}>${i + 1}</option>`).join('')}</select></div>` : ''}
-    </div></div>`;
+    ${(tab === 'Lesson' || tab === 'Report') ? `<div><label>Term week</label><select id="pw">${[...Array(14)].map((_, i) => `<option${i + 1 == sel.w ? ' selected' : ''}>${i + 1}</option>`).join('')}</select></div>` : ''}</div></div>`;
   }
 
   function bindPick() {
@@ -333,7 +422,7 @@
       <table style="margin-top:10px"><tr><th>Pupil</th><th>Present</th><th>Score</th><th>Remark / behaviour</th></tr>
       ${(cls.pupils || []).map((p, i) => {
         const m = mk[p] || {};
-        return `<tr><td>${e(p)}</td><td><input type="checkbox" id="p${i}"${(l.marks ? m.p : true) ? ' checked' : ''}></td><td style="width:80px"><input type="number" id="s${i}" value="${e(m.s)}"></td><td style="width:150px"><input type="text" id="r${i}" value="${e(m.r)}"></td></tr>`;
+        return `<tr><td>${e(p)}</td><td><input type="checkbox" id="p${i}"${(l.marks ? m.p : true) ? ' checked' : ''}></td><td style="width:80px"><input type="number" id="s${i}" value="${e(m.s)}"></td><td><input id="r${i}" value="${e(m.r)}"></td></tr>`;
       }).join('') || '<tr><td colspan=4 class="mut">Add pupils in the Schools tab.</td></tr>'}
       </table>
       <button class="b" id="save">Save lesson</button>
@@ -377,7 +466,7 @@
     const s = cs();
     const cls = cc();
     const l = lessonAt(sel.w);
-    const H = `<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:6px"><h2 style="margin:0">Weekly Teaching Report – ${e(cls.name)}</h2><p style="margin:4px 0 10px">${e(s.name)} – Week ${sel.w}</p>`;
+    const H = `<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:6px"><h2 style="margin:0">Weekly Teaching Report</h2><p style="margin:4px 0 10px">${e(s.name)} · ${e(cls.name)} · Week ${sel.w}${l && l.date ? ' · ' + e(l.date) : ''}</p>`;
     if (!l) return H + '<p>No lesson logged for this week yet (use the Lesson tab).</p></div>';
 
     const st = stats(l, cls);
@@ -392,11 +481,10 @@
     const R = (a, b) => `<tr><td style="border:1px solid #999;padding:5px;width:34%;font-weight:bold;vertical-align:top">${a}</td><td style="border:1px solid #999;padding:5px">${b || '–'}</td></tr>`;
     const T = t => `<h3 style="margin:14px 0 4px;font-size:14px;background:#dde8ec;padding:4px">${t}</h3><table style="border-collapse:collapse;width:100%;font-size:12px">`;
 
-    return H + T('1. Lesson summary') + R('Topic', e(l.topic)) + R('Objective', e(l.objective)) + R('Resources', e(l.resources)) + R('Practical / theory', e(l.split)) + R('Homework given', e(l.homework)) + '</table>' +
-      T('2. Pupil performance') + R('Assessment', `${e(l.type)}, out of ${l.outOf}`) + R('Pupils assessed', st.sc.length) + R('Class average', pct(st.avg) + (pa != null && st.avg != null ? ` (${st.avg > pa ? '+' : ''}${Math.round(st.avg - pa)}%)` : '')) + R('Exceeds', cnt('Exceeds')) + R('Meets', cnt('Meets')) + R('Developing', cnt('Developing')) + R('Not yet', cnt('Not yet')) + R('Absent', absent) + '</table>' +
+    return H + T('1. Lesson summary') + R('Topic', e(l.topic)) + R('Objective', e(l.objective)) + R('Resources', e(l.resources)) + R('Practical / theory', e(l.split)) + R('Homework given', e(l.homework)) + R('Attendance', `${st.pr} of ${st.tot} present (${pct(st.att)})`) + R('Absent', e(absent)) + '</table>' +
+      T('2. Pupil performance') + R('Assessment', `${e(l.type)}, out of ${l.outOf}`) + R('Pupils assessed', st.sc.length) + R('Class average', pct(st.avg) + (pa != null && st.avg != null ? ` (${st.avg >= pa ? '+' : ''}${Math.round((st.avg - pa) * 10) / 10}%)` : '')) + R('Highest / lowest', st.sc.length ? pct(Math.max(...st.sc.map(x => x[1]))) + ' / ' + pct(Math.min(...st.sc.map(x => x[1]))) : '–') + R('Levels', `Exceeds ${cnt('Exceeds')} · Meets ${cnt('Meets')} · Developing ${cnt('Developing')} · Not yet ${cnt('Not yet')}`) + R('Pupils excelling', e(names(n => n === 'Exceeds'))) + R('Pupils needing support', e(names(n => n === 'Developing' || n === 'Not yet'))) + R('Pupil remarks', remarks) + '</table>' +
       T('3. Self-evaluation') + R('Challenges', e(l.challenges)) + R('Content completed', e(l.done)) + R('Confidence (1-5)', l.conf) + R('What worked / change', e(l.worked)) + '</table>' +
-      T('4. Behaviour') + R('Remarks', remarks) + '</table>' +
-      T('5. Next week') + R('Next topic', e(l.next)) + R('Prep & requests', e(l.prep)) + '</table>' +
+      T('4. Next week') + R('Next topic', e(l.next)) + R('Prep & requests', e(l.prep)) + '</table>' +
       T('Term to date') + R('Lessons taught', all.length) + R('Average attendance', pct(av(all.map(x => x.att)))) + R('Average score', pct(av(all.map(x => x.avg)))) + '</table>' +
       `<p style="font-size:11px;margin-top:14px">Prepared by: ${e(window.teacher || '')}</p></div>`;
   }
@@ -462,10 +550,10 @@
 
     const avWeek = ls.map((l, i) => {
       const val = stats(l, cls).avg;
-      return `<div class="row" style="align-items:center;flex-wrap:nowrap;margin:4px 0"><span style="flex:0 0 60px">Wk ${l.w}</span><div style="flex:1"><div class="bar" style="width:${val == null ? 0 : Math.min(val, 100)}%"></div></div><span style="flex:0 0 40px;text-align:right">${pct(val)}</span></div>`;
+      return `<div class="row" style="align-items:center;flex-wrap:nowrap;margin:4px 0"><span style="flex:0 0 60px">Wk ${l.w}</span><div style="flex:1"><div class="bar" style="width:${val == null ? 0 : val}%"></div></div><span style="flex:0 0 60px;text-align:right">${pct(val)}</span></div>`;
     }).join('');
 
-    return pickers() + `<div class="card"><h2>Pupil progress</h2><table><tr><th>Pupil</th><th>Attendance</th><th>Average</th><th>Level</th><th>Last scores</th></tr>${rows}</table></div><div class="card"><h2>Term score trend</h2>${avWeek}</div>`;
+    return pickers() + `<div class="card"><h2>Pupil progress</h2><table><tr><th>Pupil</th><th>Attendance</th><th>Average</th><th>Level</th><th>Last scores</th></tr>${rows}</table></div><div class="card"><h2>Class average by week</h2>${avWeek || '<p class="mut">No lesson data yet.</p>'}</div>`;
   }
 
   function render() {
