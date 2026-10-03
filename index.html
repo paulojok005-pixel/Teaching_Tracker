@@ -219,4 +219,7 @@ function render(){
   render();if(!SB)return;
   SB.auth.onAuthStateChange((_ev,ses)=>{const n=ses&&ses.user?ses.user.id:null;if(n===uid)return;uid=n;if(uid)load();else{S=[];Ls=[];render()}});
 })();
-</script></body></html>
+<script src="curriculum.js"></script>
+<script src="teachers.js"></script>
+<script src="extras.js"></script>
+<script src="more.js"></script>
